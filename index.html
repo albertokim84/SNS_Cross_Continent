@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>외국 친구와 SNS 소통하기: 통신 원리 시뮬레이터</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      word-break: keep-all;
+    }
+
+    html, body {
+      background-color: #ffffff;
+      color: #0f172a;
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 고대비 굵은 테두리 카드 */
+    .hw-card {
+      background-color: #ffffff;
+      border-width: 3px;
+      border-style: solid;
+      border-radius: 0.85rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+    }
+
+    /* 4대 원리 테마 테두리 & 활성화 효과 */
+    .theme-signal { border-color: #2563eb; }
+    .theme-wifi   { border-color: #7c3aed; }
+    .theme-modem  { border-color: #ea580c; }
+    .theme-fiber  { border-color: #059669; }
+
+    .active-signal {
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.28);
+    }
+    .active-wifi {
+      box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.28);
+    }
+    .active-modem {
+      box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.28);
+    }
+    .active-fiber {
+      box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.28);
+    }
+
+    /* 입체 터치 버튼 */
+    .touch-btn {
+      border: 2px solid #0f172a;
+      box-shadow: 0 2px 0 #0f172a;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.15s ease;
+      cursor: pointer;
+    }
+    .touch-btn:active:not(:disabled) {
+      transform: translateY(2px);
+      box-shadow: 0 0px 0 #0f172a;
+    }
+
+    /* 2페이지 5단계 선택 버튼 활성화 */
+    .step-btn {
+      border: 2px solid #cbd5e1;
+      background-color: #ffffff;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .step-btn.active-step-btn {
+      border: 2.5px solid #0f172a;
+      background-color: #fef08a;
+      box-shadow: 0 2px 0 #0f172a;
+    }
+
+    /* 2페이지 중앙 5열 통신 구간 카드 */
+    .stage-col-card {
+      border: 2.5px solid #cbd5e1;
+      border-radius: 0.75rem;
+      background-color: #ffffff;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .stage-col-card.active-stage-col {
+      border: 3px solid #0f172a;
+      background-color: #fefce8;
+      box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.35);
+    }
+
+    @keyframes popBubble {
+      0%   { transform: scale(0.8); opacity: 0; }
+      60%  { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .pop-bubble {
+      animation: popBubble 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-900 w-screen h-dvh overflow-hidden flex flex-col">
+
+  <!-- ================= 상단 고정 헤더 바 (높이 최소화 & 겹침 방지) ================= -->
+  <header class="w-full bg-white border-b-[3px] border-slate-900 px-3 py-1.5 shrink-0 z-40">
+    <div class="max-w-[1440px] mx-auto flex items-center justify-between gap-2">
+
+      <!-- 좌측: 앱 타이틀 -->
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="bg-slate-900 text-amber-300 text-[11px] font-black px-2 py-0.5 rounded-md shrink-0">중학 정보·과학</span>
+        <h1 class="text-xs sm:text-sm md:text-base font-black tracking-tight text-slate-900 truncate">
+          🌐 외국 친구에게 SNS 보내기: 유무선 통신 시뮬레이터
+        </h1>
+      </div>
+
+      <!-- 중앙: 2개 페이지 전환 탭 -->
+      <nav class="flex bg-slate-100 p-0.5 rounded-xl border-2 border-slate-900 gap-1 shrink-0">
+        <button id="navTab-1" onclick="switchPage(1)"
+          class="px-3 py-1 rounded-lg font-black text-xs transition whitespace-nowrap bg-slate-900 text-white cursor-pointer">
+          1. 4대 핵심 원리 한눈에 보기
+        </button>
+        <button id="navTab-2" onclick="switchPage(2)"
+          class="px-3 py-1 rounded-lg font-black text-xs transition whitespace-nowrap text-slate-700 hover:bg-slate-200 cursor-pointer">
+          2. 외국 친구에게 SNS 보내기 실험실
+        </button>
+      </nav>
+
+      <!-- 우측: 일상 비유 ON / OFF 토글 -->
+      <button id="analogyToggleBtn" onclick="toggleAnalogyMode()"
+        class="touch-btn flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-100 hover:bg-amber-200 font-black text-xs shrink-0">
+        <span>💡 일상 비유</span>
+        <span id="analogyStateText" class="px-1.5 py-0.2 rounded bg-slate-900 text-amber-300 text-[11px] font-black">ON</span>
+      </button>
+
+    </div>
+  </header>
+
+  <!-- ================= 메인 콘텐츠 영역 (100dvh 내부 고정) ================= -->
+  <main class="max-w-[1440px] w-full mx-auto px-3 py-1.5 flex-1 min-h-0 overflow-hidden flex flex-col bg-white">
+
+    <!-- =======================================================================
+         [페이지 1] 1. 4대 핵심 원리 한눈에 보기 (2x2 그리드, 2줄 레이아웃)
+         ======================================================================= -->
+    <section id="page-1" class="w-full h-full min-h-0 grid grid-rows-[1fr_auto] gap-1.5 overflow-hidden">
+
+      <!-- 2x2 통신 원리 카드 그리드 -->
+      <div class="min-h-0 grid grid-cols-2 grid-rows-2 gap-2.5">
+
+        <!-- 카드 1: 디지털 신호 vs 아날로그 신호 -->
+        <div id="p1Card-signal" class="hw-card theme-signal p-2.5 flex flex-col justify-between min-h-0 overflow-hidden">
+          <div class="flex flex-col gap-1 min-h-0">
+            <div class="flex items-start justify-between gap-1.5">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 border-2 border-[#2563eb] flex items-center justify-center text-base shrink-0">📊</div>
+                <div class="min-w-0">
+                  <h2 class="font-black text-xs sm:text-sm text-slate-900 leading-tight">① 디지털 신호 vs 아날로그 신호</h2>
+                  <p class="text-[11px] font-extrabold text-[#2563eb] leading-tight">0·1 계단 파형과 연속으로 이어지는 물결 파형</p>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-md bg-blue-50 text-[#2563eb] border border-[#2563eb] text-[10px] font-black leading-tight text-center shrink-0">
+                0·1 계단형<br/>vs 연속 물결형
+              </span>
+            </div>
+
+            <!-- 일상 비유 (2줄 보장) -->
+            <div class="analogy-item bg-blue-50/80 border border-[#2563eb]/40 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-900 leading-snug">
+              💡 <strong>일상 비유:</strong> <strong class="text-[#2563eb]">디지털</strong>은 계단을 한 칸씩(0층·1층) 딱딱 끊어 오르는 것,<br/>
+              <strong class="text-rose-600">아날로그</strong>는 미끄럼틀처럼 끊어지지 않고 부드럽게 이어지는 것이에요!
+            </div>
+
+            <!-- 핵심 설명 (2줄) -->
+            <div class="text-[11px] font-bold text-slate-800 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 leading-snug">
+              • <strong class="text-[#2563eb]">디지털 신호</strong>: 스마트폰 속 글자·사진처럼 <strong>0과 1로만 표시되는 신호</strong><br/>
+              • <strong class="text-rose-600">아날로그 신호</strong>: 목소리·전파·빛처럼 <strong>연속해서 변하는 파동 신호</strong>
+            </div>
+          </div>
+
+          <!-- 하단 시연 캔버스 영역 (라벨을 HTML로 분리해 겹침 방지) -->
+          <div class="pt-1 border-t border-slate-200 flex items-center gap-2 shrink-0">
+            <div class="flex-1 flex flex-col gap-0.5 min-w-0">
+              <div class="flex justify-between text-[10px] font-black px-1">
+                <span class="text-[#2563eb]">🔵 디지털 (1 0 1 1 0 1 계단파)</span>
+                <span class="text-rose-600">🔴 아날로그 (연속 물결파)</span>
+              </div>
+              <div class="h-12 rounded-lg bg-slate-50 border-2 border-[#2563eb] overflow-hidden">
+                <canvas id="p1CanvasSignal" class="w-full h-full block"></canvas>
+              </div>
+            </div>
+            <button onclick="boostP1Demo('signal')" class="touch-btn px-2.5 py-2 rounded-xl bg-[#2563eb] hover:bg-blue-700 text-white font-black text-[11px] leading-tight text-center shrink-0">
+              🔍 파형 비교<br/>시연하기
+            </button>
+          </div>
+        </div>
+
+        <!-- 카드 2: 와이파이(Wi-Fi)와 전자기파 원리 -->
+        <div id="p1Card-wifi" class="hw-card theme-wifi p-2.5 flex flex-col justify-between min-h-0 overflow-hidden">
+          <div class="flex flex-col gap-1 min-h-0">
+            <div class="flex items-start justify-between gap-1.5">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-purple-50 border-2 border-[#7c3aed] flex items-center justify-center text-base shrink-0">🛜</div>
+                <div class="min-w-0">
+                  <h2 class="font-black text-xs sm:text-sm text-slate-900 leading-tight">② 와이파이(Wi-Fi)와 전자기파</h2>
+                  <p class="text-[11px] font-extrabold text-[#7c3aed] leading-tight">전기(⚡)가 자기장(🧲)을 만들고 둘이 결합해 날아감</p>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-md bg-purple-50 text-[#7c3aed] border border-[#7c3aed] text-[10px] font-black leading-tight text-center shrink-0">
+                ⚡전기 + 🧲자기장<br/>= 전자기파
+              </span>
+            </div>
+
+            <!-- 일상 비유 (2줄) -->
+            <div class="analogy-item bg-purple-50/80 border border-[#7c3aed]/40 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-900 leading-snug">
+              💡 <strong>일상 비유:</strong> <strong class="text-blue-600">전기(⚡)</strong>와 <strong class="text-rose-600">자기장(🧲)</strong> 두 친구가 <strong>이인삼각 달리기</strong>처럼<br/>
+              서로를 끌어 주며 선 없이도 공기 중을 날아가는 파동이에요!
+            </div>
+
+            <!-- 핵심 설명 (2줄) -->
+            <div class="text-[11px] font-bold text-slate-800 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 leading-snug">
+              • 안테나에 <strong>진동하는 전기(⚡)</strong>가 흐르면 주변에 <strong>자기장(🧲)</strong>이 만들어져요.<br/>
+              • <strong class="text-blue-600">전기장</strong>과 <strong class="text-rose-600">자기장</strong>이 번갈아 서로를 만들며 퍼져 나가는 것이 <strong class="text-[#7c3aed]">전자기파(Wi-Fi)</strong>예요!
+            </div>
+          </div>
+
+          <!-- 하단 시연 캔버스 영역 -->
+          <div class="pt-1 border-t border-slate-200 flex items-center gap-2 shrink-0">
+            <div class="flex-1 flex flex-col gap-0.5 min-w-0">
+              <div class="flex justify-between text-[10px] font-black px-1">
+                <span class="text-blue-600">⚡ 파란 실선: 전기장 파동</span>
+                <span class="text-rose-600">🧲 빨간 점선: 자기장 파동</span>
+              </div>
+              <div class="h-12 rounded-lg bg-slate-50 border-2 border-[#7c3aed] overflow-hidden">
+                <canvas id="p1CanvasWifi" class="w-full h-full block"></canvas>
+              </div>
+            </div>
+            <button onclick="boostP1Demo('wifi')" class="touch-btn px-2.5 py-2 rounded-xl bg-[#7c3aed] hover:bg-purple-700 text-white font-black text-[11px] leading-tight text-center shrink-0">
+              🔍 전자기파<br/>발사 시연
+            </button>
+          </div>
+        </div>
+
+        <!-- 카드 3: 변조(Modulation)와 복조(Demodulation) -->
+        <div id="p1Card-modem" class="hw-card theme-modem p-2.5 flex flex-col justify-between min-h-0 overflow-hidden">
+          <div class="flex flex-col gap-1 min-h-0">
+            <div class="flex items-start justify-between gap-1.5">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-orange-50 border-2 border-[#ea580c] flex items-center justify-center text-base shrink-0">🔄</div>
+                <div class="min-w-0">
+                  <h2 class="font-black text-xs sm:text-sm text-slate-900 leading-tight">③ 변조와 복조 (신호 변환 통역사)</h2>
+                  <p class="text-[11px] font-extrabold text-[#ea580c] leading-tight">디지털(0·1)과 아날로그(전파·빛)를 서로 바꾸기</p>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-md bg-orange-50 text-[#ea580c] border border-[#ea580c] text-[10px] font-black leading-tight text-center shrink-0">
+                변조(0·1➔파동)<br/>복조(파동➔0·1)
+              </span>
+            </div>
+
+            <!-- 일상 비유 (2줄) -->
+            <div class="analogy-item bg-orange-50/80 border border-[#ea580c]/40 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-900 leading-snug">
+              💡 <strong>일상 비유:</strong> <strong class="text-[#ea580c]">변조</strong>는 선물(0·1)을 택배 트럭(아날로그 전파)에 포장해 싣는 것,<br/>
+              <strong class="text-blue-600">복조</strong>는 도착한 트럭에서 원래 선물(0·1)을 꺼내는 것이에요!
+            </div>
+
+            <!-- 핵심 설명 (2줄) -->
+            <div class="text-[11px] font-bold text-slate-800 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 leading-snug">
+              • <strong class="text-[#ea580c]">변조(송신)</strong>: 디지털(0·1)을 멀리 보내기 위해 아날로그 파동에 싣는 과정<br/>
+              • <strong class="text-blue-600">복조(수신)</strong>: 도착한 아날로그 파동에서 다시 디지털(0·1)을 뽑아내는 과정
+            </div>
+          </div>
+
+          <!-- 하단 시연 영역 (HTML 박스 + 중앙 순수 파형 캔버스로 글씨 겹침 0%) -->
+          <div class="pt-1 border-t border-slate-200 flex items-center gap-2 shrink-0">
+            <div class="flex-1 h-14 rounded-lg bg-slate-50 border-2 border-[#ea580c] px-1.5 py-1 flex items-center justify-between gap-1 overflow-hidden">
+              <div class="bg-blue-100 border border-blue-600 rounded px-1.5 py-0.5 text-center shrink-0">
+                <div class="text-[9px] font-black text-blue-900">디지털</div>
+                <div class="text-[10px] font-black text-blue-700">1 0 1 1</div>
+              </div>
+              <div class="bg-[#ea580c] text-white rounded px-1.5 py-0.5 text-center shrink-0">
+                <div class="text-[10px] font-black leading-tight">변조<br/><span class="text-[8px]">파동싣기</span></div>
+              </div>
+              <div class="flex-1 h-full min-w-[60px] overflow-hidden">
+                <canvas id="p1CanvasModem" class="w-full h-full block"></canvas>
+              </div>
+              <div class="bg-[#2563eb] text-white rounded px-1.5 py-0.5 text-center shrink-0">
+                <div class="text-[10px] font-black leading-tight">복조<br/><span class="text-[8px]">0·1꺼내기</span></div>
+              </div>
+              <div class="bg-blue-100 border border-blue-600 rounded px-1.5 py-0.5 text-center shrink-0">
+                <div class="text-[9px] font-black text-blue-900">디지털</div>
+                <div class="text-[10px] font-black text-blue-700">1 0 1 1</div>
+              </div>
+            </div>
+            <button onclick="boostP1Demo('modem')" class="touch-btn px-2.5 py-2 rounded-xl bg-[#ea580c] hover:bg-orange-700 text-white font-black text-[11px] leading-tight text-center shrink-0">
+              🔍 변조·복조<br/>시연하기
+            </button>
+          </div>
+        </div>
+
+        <!-- 카드 4: LAN선·중계기와 해저 광케이블(광섬유) -->
+        <div id="p1Card-fiber" class="hw-card theme-fiber p-2.5 flex flex-col justify-between min-h-0 overflow-hidden">
+          <div class="flex flex-col gap-1 min-h-0">
+            <div class="flex items-start justify-between gap-1.5">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-emerald-50 border-2 border-[#059669] flex items-center justify-center text-base shrink-0">🌊</div>
+                <div class="min-w-0">
+                  <h2 class="font-black text-xs sm:text-sm text-slate-900 leading-tight">④ LAN선·중계기와 해저 광케이블(광섬유)</h2>
+                  <p class="text-[11px] font-extrabold text-[#059669] leading-tight">전기 신호를 레이저 빛으로 바꿔 바다 건너 전반사 이동</p>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-[#059669] border border-[#059669] text-[10px] font-black leading-tight text-center shrink-0">
+                💡 광섬유 유리관<br/>빛의 전반사
+              </span>
+            </div>
+
+            <!-- 일상 비유 (2줄) -->
+            <div class="analogy-item bg-emerald-50/80 border border-[#059669]/40 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-900 leading-snug">
+              💡 <strong>일상 비유:</strong> 안쪽 벽이 거울로 된 투명한 유리 터널(<strong class="text-[#059669]">광섬유</strong>)에 손전등 빛을 쏘면,<br/>
+              빛이 벽면에 지그재그로 반사되며 지구 반대편 외국까지 순식간에 도착해요!
+            </div>
+
+            <!-- 핵심 설명 (2줄) -->
+            <div class="text-[11px] font-bold text-slate-800 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 leading-snug">
+              • 공유기 ➔ <strong>LAN선(전기)</strong> ➔ <strong>중계기</strong>가 신호를 증폭하고 <strong>전기(⚡)를 빛(💡)으로 변환</strong>해요.<br/>
+              • 바닷속 <strong>광섬유</strong> 코어 벽면에서 빛이 100% 반사(<strong class="text-[#059669]">전반사</strong>)되며 초고속으로 이동해요!
+            </div>
+          </div>
+
+          <!-- 하단 시연 캔버스 영역 -->
+          <div class="pt-1 border-t border-slate-200 flex items-center gap-2 shrink-0">
+            <div class="flex-1 flex flex-col gap-0.5 min-w-0">
+              <div class="flex justify-between text-[10px] font-black px-1">
+                <span class="text-[#059669]">🟢 초록 벽면: 광섬유 유리 코어</span>
+                <span class="text-amber-600">🟡 노란 광선: 전반사 레이저 빛</span>
+              </div>
+              <div class="h-12 rounded-lg bg-slate-50 border-2 border-[#059669] overflow-hidden">
+                <canvas id="p1CanvasFiber" class="w-full h-full block"></canvas>
+              </div>
+            </div>
+            <button onclick="boostP1Demo('fiber')" class="touch-btn px-2.5 py-2 rounded-xl bg-[#059669] hover:bg-emerald-700 text-white font-black text-[11px] leading-tight text-center shrink-0">
+              🔍 광섬유 빛<br/>발사 시연
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 페이지 1 하단 안내 바 -->
+      <div class="bg-slate-50 border-2 border-slate-900 rounded-xl px-3 py-1 flex items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2 text-xs font-black text-slate-900 min-w-0">
+          <span class="px-2 py-0.5 rounded bg-slate-900 text-amber-300 text-[11px] shrink-0">학습 가이드</span>
+          <span id="p1BottomNotice" class="truncate">각 카드의 <strong>[🔍 시연]</strong> 버튼을 눌러 원리를 확인한 뒤, 오른쪽 버튼을 눌러 외국 친구에게 SNS를 보내 보세요!</span>
+        </div>
+        <button onclick="switchPage(2)"
+          class="touch-btn px-3.5 py-1 rounded-xl bg-[#2563eb] hover:bg-blue-700 text-white font-black text-xs shrink-0">
+          2. 외국 친구에게 SNS 보내기 실험실 ▶
+        </button>
+      </div>
+
+    </section>
+
+    <!-- =======================================================================
+         [페이지 2] 2. 외국 친구에게 SNS 보내기 실험실 (한 화면 3단 그리드 고정)
+         ======================================================================= -->
+    <section id="page-2" class="hidden w-full h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-1.5 overflow-hidden">
+
+      <!-- [1단: 상단 컨트롤 바] 메시지 선택 + 5단계 2줄 버튼 그리드 -->
+      <div class="bg-slate-50 border-[2.5px] border-slate-900 rounded-xl p-1.5 flex flex-col gap-1.5 shrink-0">
+
+        <!-- 상단 줄: 보낼 메시지 선택 + 전체 연속 전송/초기화 -->
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-md">① 보낼 SNS 메시지</span>
+            <button id="msgBtn-0" onclick="selectSnsMessage(0)"
+              class="touch-btn px-2.5 py-0.5 rounded-lg bg-amber-200 font-black text-xs text-slate-900">
+              😊 "안녕! 반가워"
+            </button>
+            <button id="msgBtn-1" onclick="selectSnsMessage(1)"
+              class="touch-btn px-2.5 py-0.5 rounded-lg bg-white hover:bg-slate-100 font-black text-xs text-slate-700">
+              ❤️ "최고야! 하트"
+            </button>
+            <button id="msgBtn-2" onclick="selectSnsMessage(2)"
+              class="touch-btn px-2.5 py-0.5 rounded-lg bg-white hover:bg-slate-100 font-black text-xs text-slate-700">
+              🎵 "케이팝 노래"
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button id="btnAutoPlay" onclick="startAutoJourney()"
+              class="touch-btn px-3 py-0.5 rounded-lg bg-[#2563eb] hover:bg-blue-700 text-white font-black text-xs">
+              🚀 1~5단계 연속 전송 시작
+            </button>
+            <button onclick="runLabStep(1)"
+              class="touch-btn px-2.5 py-0.5 rounded-lg bg-white hover:bg-slate-200 text-slate-800 font-black text-xs">
+              🔄 1단계로 초기화
+            </button>
+          </div>
+        </div>
+
+        <!-- 하단 줄: 5단계 구간 선택 버튼 (각 버튼 2줄 구성으로 글씨 겹침 완벽 방지) -->
+        <div class="grid grid-cols-5 gap-1.5">
+          <button id="stepBtn-1" onclick="runLabStep(1)" class="step-btn rounded-lg px-1.5 py-1 text-center leading-tight">
+            <div class="text-[11px] font-black text-purple-900">1단계: 내 폰 ➔ 와이파이</div>
+            <div class="text-[10px] font-bold text-purple-700">변조 · 전자기파(전기+자기장)</div>
+          </button>
+          <button id="stepBtn-2" onclick="runLabStep(2)" class="step-btn rounded-lg px-1.5 py-1 text-center leading-tight">
+            <div class="text-[11px] font-black text-orange-900">2단계: 공유기 ➔ LAN·중계기</div>
+            <div class="text-[10px] font-bold text-orange-700">복조 · 구리선 전기 신호</div>
+          </button>
+          <button id="stepBtn-3" onclick="runLabStep(3)" class="step-btn rounded-lg px-1.5 py-1 text-center leading-tight">
+            <div class="text-[11px] font-black text-emerald-900">3단계: 해저 광케이블</div>
+            <div class="text-[10px] font-bold text-emerald-700">광섬유 속 빛의 전반사 이동</div>
+          </button>
+          <button id="stepBtn-4" onclick="runLabStep(4)" class="step-btn rounded-lg px-1.5 py-1 text-center leading-tight">
+            <div class="text-[11px] font-black text-purple-900">4단계: 외국 공유기 ➔ 와이파이</div>
+            <div class="text-[10px] font-bold text-purple-700">변조 · 전자기파 무선 송신</div>
+          </button>
+          <button id="stepBtn-5" onclick="runLabStep(5)" class="step-btn rounded-lg px-1.5 py-1 text-center leading-tight">
+            <div class="text-[11px] font-black text-blue-900">5단계: 외국 친구 폰 도착!</div>
+            <div class="text-[10px] font-bold text-blue-700">복조 · 디지털 0,1 메시지 복원</div>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- [2단: 중앙 스테이지] 5열 독립 통신 구간 카드 그리드 (HTML 텍스트와 캔버스 완벽 분리) -->
+      <div class="min-h-0 grid grid-cols-5 gap-2 overflow-hidden">
+
+        <!-- [구간 1 카드] 내 스마트폰 & Wi-Fi 변조 -->
+        <div id="stBox-1" onclick="runLabStep(1)" class="stage-col-card p-2 cursor-pointer">
+          <!-- 상단 2줄 제목 & 배지 -->
+          <div class="flex flex-col gap-1 shrink-0">
+            <div class="flex items-center justify-between gap-1">
+              <span class="px-1.5 py-0.5 rounded bg-purple-700 text-white text-[10px] font-black">구간 1</span>
+              <span class="px-1.5 py-0.5 rounded bg-orange-100 text-orange-900 border border-orange-500 text-[10px] font-black">변조 (0·1➔전파)</span>
+            </div>
+            <div class="text-xs font-black text-slate-900 leading-tight">
+              🇰🇷 내 스마트폰 ➔<br/>와이파이 전자기파 발사
+            </div>
+          </div>
+
+          <!-- 중앙: 내 스마트폰 화면 + 전자기파 캔버스 -->
+          <div class="flex-1 min-h-0 my-1 flex flex-col justify-between gap-1 bg-purple-50/60 border-2 border-purple-300 rounded-lg p-1.5 overflow-hidden">
+            <div class="bg-white border border-slate-300 rounded-md px-1.5 py-1 flex items-center justify-between shrink-0">
+              <span class="text-base">📱</span>
+              <div class="text-right leading-tight">
+                <div id="krPhoneMsgBadge" class="text-[11px] font-black text-blue-700">😊 "안녕! 반가워"</div>
+                <div id="krPhoneBitBadge" class="text-[10px] font-extrabold text-slate-600">디지털: 1 0 1 1 0 1</div>
+              </div>
+            </div>
+            <div class="flex-1 min-h-[38px] bg-white rounded border border-purple-300 overflow-hidden">
+              <canvas id="stageCanvas1" class="w-full h-full block"></canvas>
+            </div>
+            <div class="text-[10px] font-black text-center text-purple-900 leading-tight shrink-0">
+              ⚡전기(파랑) + 🧲자기장(빨강)<br/>= 🛜 와이파이 전자기파
+            </div>
+          </div>
+
+          <!-- 하단 2줄 핵심 요약 -->
+          <div class="bg-slate-100 rounded-md px-1.5 py-1 text-[10px] font-bold text-slate-800 leading-tight shrink-0">
+            디지털(0·1)을 <strong>변조</strong>하여<br/>공기 중 <strong>전자기파</strong>로 날려 보내요.
+          </div>
+        </div>
+
+        <!-- [구간 2 카드] 한국 공유기 ➔ LAN선 ➔ 중계기 -->
+        <div id="stBox-2" onclick="runLabStep(2)" class="stage-col-card p-2 cursor-pointer">
+          <div class="flex flex-col gap-1 shrink-0">
+            <div class="flex items-center justify-between gap-1">
+              <span class="px-1.5 py-0.5 rounded bg-orange-600 text-white text-[10px] font-black">구간 2</span>
+              <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-500 text-[10px] font-black">복조 & 광변환</span>
+            </div>
+            <div class="text-xs font-black text-slate-900 leading-tight">
+              📡 우리집 공유기 ➔<br/>🔌 LAN선 · 🏢 중계기
+            </div>
+          </div>
+
+          <!-- 중앙: 공유기 -> LAN 전기신호 -> 중계기 캔버스 -->
+          <div class="flex-1 min-h-0 my-1 flex flex-col justify-between gap-1 bg-orange-50/60 border-2 border-orange-300 rounded-lg p-1.5 overflow-hidden">
+            <div class="flex items-center justify-between text-[10px] font-black text-orange-950 bg-white border border-orange-200 rounded px-1.5 py-0.5 shrink-0">
+              <span>📡 공유기(복조)</span>
+              <span>➔</span>
+              <span>🏢 중계기(증폭)</span>
+            </div>
+            <div class="flex-1 min-h-[38px] bg-white rounded border border-orange-300 overflow-hidden">
+              <canvas id="stageCanvas2" class="w-full h-full block"></canvas>
+            </div>
+            <div class="text-[10px] font-black text-center text-orange-900 leading-tight shrink-0">
+              🔌 구리 LAN선 전기 신호 이동 후<br/>중계기에서 ⚡전기 ➔ 💡빛 변환!
+            </div>
+          </div>
+
+          <div class="bg-slate-100 rounded-md px-1.5 py-1 text-[10px] font-bold text-slate-800 leading-tight shrink-0">
+            전파를 <strong>복조</strong>해 LAN선으로 보내고<br/><strong>중계기</strong>가 신호를 증폭해 빛으로 바꿔요.
+          </div>
+        </div>
+
+        <!-- [구간 3 카드] 해저 광케이블 (광섬유 전반사 단면도) -->
+        <div id="stBox-3" onclick="runLabStep(3)" class="stage-col-card p-2 cursor-pointer">
+          <div class="flex flex-col gap-1 shrink-0">
+            <div class="flex items-center justify-between gap-1">
+              <span class="px-1.5 py-0.5 rounded bg-emerald-700 text-white text-[10px] font-black">구간 3</span>
+              <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-600 text-[10px] font-black">💡 빛의 전반사</span>
+            </div>
+            <div class="text-xs font-black text-slate-900 leading-tight">
+              🌊 바닷속 해저 광케이블<br/>(광섬유 유리관 내부 단면)
+            </div>
+          </div>
+
+          <!-- 중앙: 광섬유 전반사 확대 애니메이션 캔버스 -->
+          <div class="flex-1 min-h-0 my-1 flex flex-col justify-between gap-1 bg-emerald-50/70 border-2 border-emerald-400 rounded-lg p-1.5 overflow-hidden">
+            <div class="text-[10px] font-black text-emerald-950 bg-white border border-emerald-300 rounded px-1.5 py-0.5 text-center shrink-0">
+              🔍 광섬유(Optical Fiber) 확대 단면도
+            </div>
+            <div class="flex-1 min-h-[38px] bg-white rounded border-2 border-emerald-600 overflow-hidden">
+              <canvas id="stageCanvas3" class="w-full h-full block"></canvas>
+            </div>
+            <div class="text-[10px] font-black text-center text-emerald-900 leading-tight shrink-0">
+              유리 코어 안쪽 벽면에 레이저 빛이<br/>100% 거울처럼 반사(전반사)되며 이동!
+            </div>
+          </div>
+
+          <div class="bg-slate-100 rounded-md px-1.5 py-1 text-[10px] font-bold text-slate-800 leading-tight shrink-0">
+            투명한 <strong>광섬유</strong> 속을 레이저 빛이<br/><strong>전반사</strong>하며 바다를 빛의 속도로 건너요.
+          </div>
+        </div>
+
+        <!-- [구간 4 카드] 외국 중계기 ➔ 외국 공유기 ➔ Wi-Fi 재변조 -->
+        <div id="stBox-4" onclick="runLabStep(4)" class="stage-col-card p-2 cursor-pointer">
+          <div class="flex flex-col gap-1 shrink-0">
+            <div class="flex items-center justify-between gap-1">
+              <span class="px-1.5 py-0.5 rounded bg-purple-700 text-white text-[10px] font-black">구간 4</span>
+              <span class="px-1.5 py-0.5 rounded bg-orange-100 text-orange-900 border border-orange-500 text-[10px] font-black">광복원 & 재변조</span>
+            </div>
+            <div class="text-xs font-black text-slate-900 leading-tight">
+              🏢 외국 중계기·공유기 ➔<br/>🛜 외국 와이파이 발사
+            </div>
+          </div>
+
+          <!-- 중앙: 외국 중계기/공유기 -> Wi-Fi 전자기파 캔버스 -->
+          <div class="flex-1 min-h-0 my-1 flex flex-col justify-between gap-1 bg-purple-50/60 border-2 border-purple-300 rounded-lg p-1.5 overflow-hidden">
+            <div class="flex items-center justify-between text-[10px] font-black text-purple-950 bg-white border border-purple-200 rounded px-1.5 py-0.5 shrink-0">
+              <span>🏢 중계기(💡➔⚡)</span>
+              <span>➔</span>
+              <span>📡 공유기(변조)</span>
+            </div>
+            <div class="flex-1 min-h-[38px] bg-white rounded border border-purple-300 overflow-hidden">
+              <canvas id="stageCanvas4" class="w-full h-full block"></canvas>
+            </div>
+            <div class="text-[10px] font-black text-center text-purple-900 leading-tight shrink-0">
+              다시 <strong>변조(디지털➔아날로그)</strong>하여<br/>외국 친구 방 안으로 전자기파 발사!
+            </div>
+          </div>
+
+          <div class="bg-slate-100 rounded-md px-1.5 py-1 text-[10px] font-bold text-slate-800 leading-tight shrink-0">
+            빛을 다시 전기로 바꾼 뒤 외국 공유기가<br/><strong>와이파이 전자기파</strong>로 <strong>변조</strong>해 쏘아요.
+          </div>
+        </div>
+
+        <!-- [구간 5 카드] 외국 친구 스마트폰 도착 & 복조 -->
+        <div id="stBox-5" onclick="runLabStep(5)" class="stage-col-card p-2 cursor-pointer">
+          <div class="flex flex-col gap-1 shrink-0">
+            <div class="flex items-center justify-between gap-1">
+              <span class="px-1.5 py-0.5 rounded bg-blue-700 text-white text-[10px] font-black">구간 5</span>
+              <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-600 text-[10px] font-black">복조 (전파➔0·1)</span>
+            </div>
+            <div class="text-xs font-black text-slate-900 leading-tight">
+              🇺🇸 외국 친구 스마트폰<br/>디지털 복조 & 메시지 도착!
+            </div>
+          </div>
+
+          <!-- 중앙: 복조 애니메이션 + 외국 친구 스마트폰 도착 화면 -->
+          <div class="flex-1 min-h-0 my-1 flex flex-col justify-between gap-1 bg-blue-50/70 border-2 border-blue-400 rounded-lg p-1.5 overflow-hidden">
+            <div class="flex-1 min-h-[38px] bg-white rounded border border-blue-300 overflow-hidden">
+              <canvas id="stageCanvas5" class="w-full h-full block"></canvas>
+            </div>
+            <div class="bg-white border-2 border-blue-600 rounded-md px-1.5 py-1 flex items-center justify-between shrink-0">
+              <span class="text-base">📱🎉</span>
+              <div class="text-right leading-tight">
+                <div id="usPhoneMsgBadge" class="text-[11px] font-black text-slate-500">신호 전달 중...</div>
+                <div id="usPhoneBitBadge" class="text-[10px] font-extrabold text-blue-700">복조: 1 0 1 1 0 1</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-100 rounded-md px-1.5 py-1 text-[10px] font-bold text-slate-800 leading-tight shrink-0">
+            친구 스마트폰이 전파를 <strong>복조</strong>하여<br/>원래의 <strong>디지털(0·1) 메시지</strong>를 띄워요!
+          </div>
+        </div>
+
+      </div>
+
+      <!-- [3단: 하단 패널] 좌측(7칸): 아날로그 vs 디지털 실시간 비교기 / 우측(5칸): 현재 단계 핵심 해설 -->
+      <div class="grid grid-cols-12 gap-2.5 shrink-0">
+
+        <!-- 좌측(7칸): 실시간 아날로그 vs 디지털 신호 비교기 (HTML 라벨과 캔버스 영역 완전 분리) -->
+        <div class="col-span-7 bg-white border-[2.5px] border-slate-900 rounded-xl p-2 flex flex-col justify-between gap-1">
+          <div class="flex items-center justify-between gap-1">
+            <div class="flex items-center gap-1.5">
+              <span class="px-2 py-0.5 rounded bg-slate-900 text-white text-[10px] font-black">신호 비교 모니터</span>
+              <span class="text-xs font-black text-slate-900">아날로그 신호 vs 디지털 신호 실시간 변환</span>
+            </div>
+            <span id="scopeConversionBadge" class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-700 text-[10px] font-black">
+              🔄 변조 (디지털 0·1 ➔ 아날로그 전자기파)
+            </span>
+          </div>
+
+          <!-- 라벨 열(좌측 고정) + 순수 파형 캔버스(우측) 분리로 글씨 겹침 원천 차단 -->
+          <div class="flex items-stretch gap-2 h-[76px]">
+            <div class="w-[125px] shrink-0 flex flex-col justify-between py-1 px-2 bg-slate-100 rounded-lg border border-slate-300 text-[10px] font-black leading-tight">
+              <div class="text-[#1e40af]">
+                🔵 원본 디지털 신호<br/>
+                <span id="bitStreamText" class="text-[#2563eb]">(1 0 1 1 0 1 계단파)</span>
+              </div>
+              <div class="border-t border-slate-300 pt-1 text-purple-900" id="scopeTrack2Title">
+                🟣 현재 전달 신호<br/>
+                <span class="text-[9.5px] font-bold text-slate-700">(아날로그 전자기파)</span>
+              </div>
+            </div>
+            <div class="flex-1 rounded-lg border-2 border-slate-400 bg-slate-50 overflow-hidden">
+              <canvas id="scopeCanvas" class="w-full h-full block"></canvas>
+            </div>
+          </div>
+
+          <div id="scopeBottomLabel" class="text-[10.5px] font-bold text-slate-700 truncate">
+            💡 위쪽 파형은 스마트폰의 <strong>디지털(0과 1)</strong>이고, 아래쪽 파형은 현재 구간을 지나가는 <strong>실제 전달 신호</strong>예요.
+          </div>
+        </div>
+
+        <!-- 우측(5칸): 현재 단계 핵심 원리 & 일상 비유 -->
+        <div class="col-span-5 bg-amber-50 border-[2.5px] border-slate-900 rounded-xl p-2 flex flex-col justify-between gap-1">
+          <div>
+            <div class="flex items-center justify-between mb-0.5">
+              <span id="expStepBadge" class="px-2 py-0.5 rounded bg-slate-900 text-amber-300 text-[10px] font-black">
+                1단계: 내 폰 ➔ 공유기 (Wi-Fi)
+              </span>
+              <button onclick="switchPage(1)" class="text-[10.5px] font-black text-[#2563eb] hover:underline cursor-pointer">
+                ◀ 1. 4대 원리 보기로
+              </button>
+            </div>
+
+            <h3 id="expTitle" class="text-xs font-black text-slate-900 leading-snug">
+              디지털(0·1)을 '변조'하여 와이파이 전자기파로 발사해요!
+            </h3>
+            <p id="expBody" class="text-[11px] font-bold text-slate-800 leading-snug mt-0.5">
+              • 스마트폰 속 디지털(<strong class="text-blue-700">0과 1</strong>)을 아날로그 파동에 싣는 <strong class="text-orange-600">변조</strong>가 일어나요.<br/>
+              • 안테나의 <strong>전기(⚡)</strong>가 <strong>자기장(🧲)</strong>을 만들고, 둘이 결합한 <strong>전자기파</strong>가 날아갑니다!
+            </p>
+          </div>
+
+          <!-- 일상 비유 박스 -->
+          <div id="labAnalogyBox" class="analogy-item bg-white border border-amber-500 rounded-lg px-2 py-1 text-[10.5px] font-black text-slate-900 flex items-center gap-1.5 leading-tight">
+            <span class="text-sm shrink-0">💡</span>
+            <span id="expAnalogyText">일상 비유: 편지(디지털 0·1)를 무선 드론(전기+자기장 전자기파)에 실어 공유기로 날려 보내는 과정이에요!</span>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= 자바스크립트 시뮬레이션 엔진 ================= -->
+  <script>
+    // =========================================================================
+    // 1. 전역 상태 데이터
+    // =========================================================================
+    const snsMessages = [
+      { icon: '😊', text: '"안녕! 반가워"', bits: [1, 0, 1, 1, 0, 1], bitStr: '1 0 1 1 0 1' },
+      { icon: '❤️', text: '"최고야! 하트"', bits: [1, 1, 0, 1, 0, 0], bitStr: '1 1 0 1 0 0' },
+      { icon: '🎵', text: '"케이팝 노래"',   bits: [1, 0, 0, 1, 1, 1], bitStr: '1 0 0 1 1 1' }
+    ];
+
+    const stepDetails = {
+      1: {
+        badge: '1단계: 내 스마트폰 ➔ 공유기 (무선 Wi-Fi)',
+        title: '디지털(0·1)을 [변조]하여 와이파이 전자기파(전기+자기장)로 발사해요!',
+        body: '• 스마트폰 속 디지털 신호(<strong class="text-blue-700">0과 1</strong>)를 공기 중으로 보내기 위해 아날로그 파동에 싣는 <strong class="text-orange-600">변조(Modulation)</strong>를 해요.<br/>• 안테나의 <strong class="text-blue-600">전기(⚡)</strong>가 <strong class="text-rose-600">자기장(🧲)</strong>을 만들고, 둘이 결합한 <strong class="text-purple-700">전자기파</strong>가 공유기로 날아갑니다.',
+        analogy: '일상 비유: 편지(디지털 0·1)를 비둘기(전기+자기장 전자기파)에 실어 공유기로 날려 보내는 것과 같아요!',
+        convBadge: '🔄 변조 (디지털 0·1 ➔ 아날로그 Wi-Fi 전자기파)',
+        convClass: 'bg-purple-100 text-purple-900 border-purple-700',
+        track2Title: '🟣 현재 전달 신호<br/><span class="text-[9.5px] font-bold text-purple-700">(아날로그 전자기파)</span>',
+        bottomLabel: '🟣 1단계 파형: 디지털 1일 때는 촘촘하고 큰 파동, 0일 때는 잔잔한 파동으로 [변조]된 아날로그 전자기파예요.'
+      },
+      2: {
+        badge: '2단계: 공유기 ➔ 구리 LAN선 ➔ 해안 중계기',
+        title: '공유기가 전파를 [복조]한 뒤, LAN선(전기)과 중계기를 거쳐 빛으로 바꿔요!',
+        body: '• 공유기가 무선 전파에서 디지털 정보를 <strong class="text-blue-700">복조</strong>한 뒤, 구리 <strong class="text-orange-600">LAN선</strong>을 통해 전기 신호로 전달해요.<br/>• 바닷가 <strong class="text-orange-700">중계기</strong>가 약해진 신호를 증폭하고, <strong>전기 신호(⚡)를 레이저 빛(💡)으로 변환</strong>합니다.',
+        analogy: '일상 비유: 중계기는 달리기 주자에게 물을 주고(신호 증폭), 초고속 열차(레이저 빛)로 갈아타게 해 주는 환승역이에요!',
+        convBadge: '⚡ 유선 전송 & 증폭 (공유기 복조 ➔ LAN선 전기 ➔ 중계기 광변환)',
+        convClass: 'bg-orange-100 text-orange-900 border-orange-600',
+        track2Title: '🟠 현재 전달 신호<br/><span class="text-[9.5px] font-bold text-orange-700">(LAN선 전기 파동)</span>',
+        bottomLabel: '🟠 2단계 파형: 구리 LAN선을 따라 흐르는 전기 신호를 중계기가 깨끗하게 증폭한 파형이에요.'
+      },
+      3: {
+        badge: '3단계: 해저 광케이블 (광섬유 속 빛의 전반사 이동)',
+        title: '바닷속 광케이블(광섬유) 유리관을 따라 레이저 빛이 [전반사]하며 바다를 건너요!',
+        body: '• 투명한 유리 섬유인 <strong class="text-emerald-700">광섬유(Optical Fiber)</strong> 속으로 레이저 빛(1=켜짐, 0=꺼짐)을 쏘아 보내요.<br/>• 빛이 광섬유 안쪽 벽면에 부딪히며 밖으로 새지 않고 <strong>100% 거울처럼 반사(전반사)</strong>되어 바다를 건넙니다!',
+        analogy: '일상 비유: 안쪽 벽이 거울로 된 유리 터널에 손전등 빛을 비추면, 빛이 지그재그로 반사되며 끝까지 날아가는 원리예요!',
+        convBadge: '💡 광섬유 전반사 통신 (레이저 빛: 1=반짝임, 0=꺼짐)',
+        convClass: 'bg-emerald-100 text-emerald-900 border-emerald-700',
+        track2Title: '🟢 현재 전달 신호<br/><span class="text-[9.5px] font-bold text-emerald-700">(광섬유 레이저 빛)</span>',
+        bottomLabel: '🟢 3단계 파형: 디지털 1일 때 레이저 빛이 켜지고, 0일 때 꺼지면서 광섬유 속을 전반사하며 달려요.'
+      },
+      4: {
+        badge: '4단계: 외국 중계기 ➔ 외국 공유기 ➔ 무선 Wi-Fi',
+        title: '외국에 도착한 빛을 전기로 바꾸고, 외국 공유기가 다시 Wi-Fi [변조]를 해요!',
+        body: '• 외국 <strong class="text-orange-700">중계기</strong>가 광섬유의 <strong>빛(💡)을 다시 전기 신호(⚡)로</strong> 바꾸어 LAN선으로 외국 공유기에 전달해요.<br/>• 외국 공유기는 친구 스마트폰으로 보내기 위해 다시 <strong class="text-purple-700">변조(디지털➔아날로그 전자기파)</strong>하여 방 안으로 쏩니다.',
+        analogy: '일상 비유: 외국 항구에 도착한 화물(빛)을 내려서, 친구 집으로 날아가는 무선 드론(외국 Wi-Fi 전파)에 다시 싣는 과정이에요!',
+        convBadge: '🔄 광복원 & 재변조 (빛💡 ➔ 전기⚡ ➔ 외국 Wi-Fi 전자기파)',
+        convClass: 'bg-purple-100 text-purple-900 border-purple-700',
+        track2Title: '🟣 현재 전달 신호<br/><span class="text-[9.5px] font-bold text-purple-700">(외국 Wi-Fi 전파)</span>',
+        bottomLabel: '🟣 4단계 파형: 외국 공유기 안테나에서 다시 아날로그 전자기파(전기장+자기장)로 [변조]되어 날아가는 파형이에요.'
+      },
+      5: {
+        badge: '5단계: 외국 친구 스마트폰 도착! (복조 & 메시지 출력)',
+        title: '친구 스마트폰이 아날로그 전파를 [복조]하여 원래의 디지털 SNS 화면을 띄워요!',
+        body: '• 친구 스마트폰이 Wi-Fi 전자기파를 받아 <strong class="text-blue-700">복조(Demodulation: 아날로그 전파 ➔ 디지털 0·1)</strong>를 수행해요.<br/>• 복원된 디지털 데이터(<strong class="text-blue-700">0과 1</strong>)가 내가 보낸 글자와 이모티콘으로 바뀌어 친구 폰에 똑같이 나타납니다!',
+        analogy: '일상 비유: 도착한 택배 상자(아날로그 전파)를 열어서(복조), 안에 들어 있던 원래 선물(디지털 SNS 메시지)을 꺼내는 순간이에요!',
+        convBadge: '✅ 복조 완료! (아날로그 전자기파 ➔ 디지털 0·1 완벽 복원)',
+        convClass: 'bg-blue-100 text-blue-900 border-blue-700',
+        track2Title: '🔵 복조된 디지털 신호<br/><span class="text-[9.5px] font-bold text-emerald-700">(0과 1 완벽 복원!)</span>',
+        bottomLabel: '🔵 5단계 파형: [복조] 과정을 거쳐 위쪽의 원본 디지털 신호(0과 1 계단파)와 100% 똑같은 모습으로 복원되었어요!'
+      }
+    };
+
+    const state = {
+      currentPage: 1,
+      analogyOn: true,
+      selectedMsgIdx: 0,
+      currentStep: 1,
+      autoPlaying: false,
+      autoTimer: null,
+      tick: 0,
+      p1Boost: { signal: 0, wifi: 0, modem: 0, fiber: 0 }
+    };
+
+    // =========================================================================
+    // 2. 초기화 및 화면 전환 / 리사이즈 관리
+    // =========================================================================
+    window.onload = function () {
+      resizeAllCanvases();
+      window.addEventListener('resize', resizeAllCanvases);
+      selectSnsMessage(0);
+      runLabStep(1);
+      requestAnimationFrame(animationLoop);
+    };
+
+    function switchPage(pageNum) {
+      state.currentPage = pageNum === 2 ? 2 : 1;
+      const tab1 = document.getElementById('navTab-1');
+      const tab2 = document.getElementById('navTab-2');
+      const page1 = document.getElementById('page-1');
+      const page2 = document.getElementById('page-2');
+
+      if (state.currentPage === 1) {
+        tab1.className = 'px-3 py-1 rounded-lg font-black text-xs transition whitespace-nowrap bg-slate-900 text-white cursor-pointer';
+        tab2.className = 'px-3 py-1 rounded-lg font-black text-xs transition whitespace-nowrap text-slate-700 hover:bg-slate-200 cursor-pointer';
+        page1.classList.remove('hidden');
+        page1.classList.add('grid');
+        page2.classList.add('hidden');
+        page2.classList.remove('grid');
+      } else {
+        tab2.className = 'px-3 py-1 rounded-lg font-black text-xs transition whitespace-nowrap bg-slate-900 text-white cursor-pointer';
+        tab1.className = 'px-3 py-1 rounded-lg font-black text-xs transition whitespace-nowrap text-slate-700 hover:bg-slate-200 cursor-pointer';
+        page2.classList.remove('hidden');
+        page2.classList.add('grid');
+        page1.classList.add('hidden');
+        page1.classList.remove('grid');
+      }
+      setTimeout(resizeAllCanvases, 25);
+    }
+
+    function toggleAnalogyMode() {
+      state.analogyOn = !state.analogyOn;
+      const badge = document.getElementById('analogyStateText');
+      const items = document.querySelectorAll('.analogy-item');
+
+      if (state.analogyOn) {
+        badge.textContent = 'ON';
+        badge.className = 'px-1.5 py-0.2 rounded bg-slate-900 text-amber-300 text-[11px] font-black';
+        items.forEach(el => el.classList.remove('hidden'));
+      } else {
+        badge.textContent = 'OFF';
+        badge.className = 'px-1.5 py-0.2 rounded bg-slate-300 text-slate-700 text-[11px] font-black';
+        items.forEach(el => el.classList.add('hidden'));
+      }
+      setTimeout(resizeAllCanvases, 25);
+    }
+
+    function resizeAllCanvases() {
+      const ids = [
+        'p1CanvasSignal', 'p1CanvasWifi', 'p1CanvasModem', 'p1CanvasFiber',
+        'stageCanvas1', 'stageCanvas2', 'stageCanvas3', 'stageCanvas4', 'stageCanvas5',
+        'scopeCanvas'
+      ];
+      ids.forEach(id => {
+        const c = document.getElementById(id);
+        if (!c || !c.parentElement) return;
+        const rect = c.parentElement.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          c.width = rect.width * window.devicePixelRatio;
+          c.height = rect.height * window.devicePixelRatio;
+          const ctx = c.getContext('2d');
+          ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+        }
+      });
+    }
+
+    function animationLoop() {
+      state.tick += 1;
+
+      ['signal', 'wifi', 'modem', 'fiber'].forEach(k => {
+        if (state.p1Boost[k] > 0) state.p1Boost[k] -= 1;
+      });
+
+      if (state.currentPage === 1) {
+        drawP1SignalCanvas();
+        drawP1WifiCanvas();
+        drawP1ModemCanvas();
+        drawP1FiberCanvas();
+      } else {
+        drawStage1Canvas();
+        drawStage2Canvas();
+        drawStage3Canvas();
+        drawStage4Canvas();
+        drawStage5Canvas();
+        drawScopeCanvas();
+      }
+
+      requestAnimationFrame(animationLoop);
+    }
+
+    // =========================================================================
+    // 3. [페이지 1] 4대 원리 캔버스 시연 (캔버스 내 긴 한글 제거 -> 파형만 깔끔하게)
+    // =========================================================================
+    function boostP1Demo(type) {
+      state.p1Boost[type] = 140;
+      ['signal', 'wifi', 'modem', 'fiber'].forEach(k => {
+        document.getElementById(`p1Card-${k}`).classList.remove(`active-${k}`);
+      });
+      document.getElementById(`p1Card-${type}`).classList.add(`active-${type}`);
+
+      const notice = document.getElementById('p1BottomNotice');
+      if (type === 'signal') {
+        notice.innerHTML = '📊 <strong>디지털 vs 아날로그:</strong> 왼쪽의 0과 1 계단 파형(디지털)과 오른쪽의 연속 물결 파형(아날로그)이 움직이는 모습을 비교해 보세요!';
+      } else if (type === 'wifi') {
+        notice.innerHTML = '🛜 <strong>와이파이 전자기파:</strong> 전기장(파란 실선)과 자기장(빨간 점선)이 사슬처럼 얽혀 공기 중으로 날아갑니다!';
+      } else if (type === 'modem') {
+        notice.innerHTML = '🔄 <strong>변조와 복조:</strong> 디지털(1 0 1 1)을 아날로그 파동에 실어 보내고(변조), 도착 후 다시 디지털(1 0 1 1)로 꺼냅니다(복조)!';
+      } else if (type === 'fiber') {
+        notice.innerHTML = '🌊 <strong>광섬유 빛의 전반사:</strong> 유리 코어 안쪽 벽면에 레이저 빛 입자가 부딪히며 100% 거울처럼 반사(전반사)되어 나아갑니다!';
+      }
+    }
+
+    // (1) 디지털 vs 아날로그 파형만 깔끔하게 그리기
+    function drawP1SignalCanvas() {
+      const c = document.getElementById('p1CanvasSignal');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isBoost = state.p1Boost.signal > 0;
+      const midX = w * 0.5;
+
+      // 중앙 구분선
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(midX, 4);
+      ctx.lineTo(midX, h - 4);
+      ctx.stroke();
+
+      // 좌측: 디지털 계단파 (1 0 1 1 0 1)
+      const bits = [1, 0, 1, 1, 0, 1];
+      const bw = (midX - 20) / bits.length;
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i < bits.length; i++) {
+        const x1 = 10 + i * bw;
+        const x2 = x1 + bw;
+        const y = bits[i] === 1 ? 14 : h - 8;
+        if (i === 0) ctx.moveTo(x1, y);
+        else ctx.lineTo(x1, y);
+        ctx.lineTo(x2, y);
+
+        ctx.fillStyle = bits[i] === 1 ? '#1d4ed8' : '#64748b';
+        ctx.font = '900 9.5px Pretendard';
+        ctx.textAlign = 'center';
+        ctx.fillText(bits[i], x1 + bw * 0.5, bits[i] === 1 ? 11 : h - 11);
+      }
+      ctx.stroke();
+
+      // 우측: 아날로그 연속 사인파
+      ctx.strokeStyle = '#e11d48';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      const speed = isBoost ? 0.24 : 0.09;
+      const waveW = midX - 20;
+      for (let x = 0; x <= waveW; x++) {
+        const px = midX + 10 + x;
+        const py = (h * 0.52) + Math.sin(x * 0.14 - state.tick * speed) * (h * 0.34);
+        if (x === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+
+    // (2) 와이파이 전자기파 캔버스 (안테나 + 전기장 실선 + 자기장 점선)
+    function drawP1WifiCanvas() {
+      const c = document.getElementById('p1CanvasWifi');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isBoost = state.p1Boost.wifi > 0;
+      const speed = isBoost ? 0.25 : 0.1;
+      const cy = h * 0.5;
+
+      // 좌측 안테나 심볼
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(16, h - 6);
+      ctx.lineTo(16, 10);
+      ctx.stroke();
+      ctx.fillStyle = isBoost ? '#f59e0b' : '#7c3aed';
+      ctx.beginPath();
+      ctx.arc(16, 9, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 중심 진행선
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(24, cy);
+      ctx.lineTo(w - 8, cy);
+      ctx.stroke();
+
+      // 전기장 (파란 실선)
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let x = 0; x <= w - 34; x += 2) {
+        const px = 26 + x;
+        const py = cy + Math.sin(x * 0.11 - state.tick * speed) * (h * 0.38);
+        if (x === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      // 자기장 (빨간 점선)
+      ctx.strokeStyle = '#e11d48';
+      ctx.lineWidth = 2.2;
+      ctx.setLineDash([4, 2]);
+      ctx.beginPath();
+      for (let x = 0; x <= w - 34; x += 2) {
+        const px = 26 + x;
+        const py = cy + Math.cos(x * 0.11 - state.tick * speed) * (h * 0.24);
+        if (x === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // (3) 변조·복조 중앙 아날로그 반송파 캔버스
+    function drawP1ModemCanvas() {
+      const c = document.getElementById('p1CanvasModem');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isBoost = state.p1Boost.modem > 0;
+      const speed = isBoost ? 0.28 : 0.11;
+      const cy = h * 0.5;
+      const bits = [1, 0, 1, 1];
+
+      ctx.strokeStyle = '#7c3aed';
+      ctx.lineWidth = 2.3;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x++) {
+        const bIdx = Math.min(3, Math.floor((x / w) * 4));
+        const amp = bits[bIdx] === 1 ? (h * 0.38) : (h * 0.12);
+        const py = cy + Math.sin(x * 0.38 - state.tick * speed) * amp;
+        if (x === 0) ctx.moveTo(x, py);
+        else ctx.lineTo(x, py);
+      }
+      ctx.stroke();
+    }
+
+    // (4) 광섬유 전반사 단면 캔버스
+    function drawP1FiberCanvas() {
+      const c = document.getElementById('p1CanvasFiber');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isBoost = state.p1Boost.fiber > 0;
+      drawOpticalFiberTube(ctx, w, h, isBoost ? 0.045 : 0.02);
+    }
+
+    // 공통 광섬유 내부 전반사 드로잉 함수 (글씨 없이 순수 시각 그래픽만)
+    function drawOpticalFiberTube(ctx, w, h, speed) {
+      const topWall = 7;
+      const botWall = h - 7;
+
+      // 클래딩 & 코어 배경
+      ctx.fillStyle = '#d1fae5';
+      ctx.fillRect(4, 2, w - 8, h - 4);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(4, topWall, w - 8, botWall - topWall);
+
+      // 거울 반사 벽면
+      ctx.strokeStyle = '#059669';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(4, topWall);
+      ctx.lineTo(w - 4, topWall);
+      ctx.moveTo(4, botWall);
+      ctx.lineTo(w - 4, botWall);
+      ctx.stroke();
+
+      // 지그재그 전반사 레이저 경로
+      const segments = 5;
+      const segW = (w - 20) / segments;
+      const pts = [];
+      for (let i = 0; i <= segments; i++) {
+        pts.push({
+          x: 10 + i * segW,
+          y: i % 2 === 0 ? topWall + 3 : botWall - 3
+        });
+      }
+
+      ctx.strokeStyle = '#eab308';
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      pts.forEach((p, idx) => {
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+
+      // 반사 포인트 마커
+      pts.forEach((p, idx) => {
+        if (idx > 0 && idx < segments) {
+          ctx.fillStyle = '#059669';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // 이동하는 레이저 빛 입자
+      for (let k = 0; k < 3; k++) {
+        const prog = ((state.tick * speed) + k * 0.33) % 1;
+        const pos = prog * segments;
+        const sIdx = Math.min(segments - 1, Math.floor(pos));
+        const lT = pos - sIdx;
+        const px = pts[sIdx].x + (pts[sIdx + 1].x - pts[sIdx].x) * lT;
+        const py = pts[sIdx].y + (pts[sIdx + 1].y - pts[sIdx].y) * lT;
+
+        ctx.fillStyle = '#fde047';
+        ctx.strokeStyle = '#ca8a04';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // =========================================================================
+    // 4. [페이지 2] 실험실 제어 및 5개 구간 전용 캔버스 렌더링
+    // =========================================================================
+    function selectSnsMessage(idx) {
+      state.selectedMsgIdx = idx;
+      for (let i = 0; i < 3; i++) {
+        const btn = document.getElementById(`msgBtn-${i}`);
+        if (i === idx) {
+          btn.className = 'touch-btn px-2.5 py-0.5 rounded-lg bg-amber-200 font-black text-xs text-slate-900';
+        } else {
+          btn.className = 'touch-btn px-2.5 py-0.5 rounded-lg bg-white hover:bg-slate-100 font-black text-xs text-slate-700';
+        }
+      }
+
+      const msg = snsMessages[idx];
+      document.getElementById('krPhoneMsgBadge').textContent = `${msg.icon} ${msg.text}`;
+      document.getElementById('krPhoneBitBadge').textContent = `디지털: ${msg.bitStr}`;
+      document.getElementById('usPhoneBitBadge').textContent = `복조: ${msg.bitStr}`;
+      document.getElementById('bitStreamText').textContent = `(${msg.bitStr} 계단파)`;
+
+      updateUsPhoneArrivalUI();
+    }
+
+    function updateUsPhoneArrivalUI() {
+      const msg = snsMessages[state.selectedMsgIdx];
+      const usBadge = document.getElementById('usPhoneMsgBadge');
+      if (state.currentStep === 5) {
+        usBadge.textContent = `${msg.icon} ${msg.text} 도착!`;
+        usBadge.className = 'text-[11px] font-black text-emerald-700 pop-bubble';
+      } else {
+        usBadge.textContent = `${state.currentStep}단계 이동 중...`;
+        usBadge.className = 'text-[11px] font-extrabold text-slate-500';
+      }
+    }
+
+    function stopAutoJourney() {
+      state.autoPlaying = false;
+      if (state.autoTimer) {
+        clearInterval(state.autoTimer);
+        state.autoTimer = null;
+      }
+      const btn = document.getElementById('btnAutoPlay');
+      if (btn) {
+        btn.textContent = '🚀 1~5단계 연속 전송 시작';
+        btn.className = 'touch-btn px-3 py-0.5 rounded-lg bg-[#2563eb] hover:bg-blue-700 text-white font-black text-xs';
+      }
+    }
+
+    function startAutoJourney() {
+      if (state.autoPlaying) {
+        stopAutoJourney();
+        return;
+      }
+      state.autoPlaying = true;
+      const btn = document.getElementById('btnAutoPlay');
+      btn.textContent = '⏸️ 연속 전송 중 (클릭 시 정지)';
+      btn.className = 'touch-btn px-3 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-black text-xs';
+
+      let step = 1;
+      runLabStep(step, true);
+
+      state.autoTimer = setInterval(() => {
+        step += 1;
+        if (step > 5) {
+          stopAutoJourney();
+          return;
+        }
+        runLabStep(step, true);
+      }, 2300);
+    }
+
+    function runLabStep(stepNum, fromAuto = false) {
+      if (!fromAuto) stopAutoJourney();
+      state.currentStep = stepNum;
+
+      for (let i = 1; i <= 5; i++) {
+        const sBtn = document.getElementById(`stepBtn-${i}`);
+        const stBox = document.getElementById(`stBox-${i}`);
+        if (i === stepNum) {
+          sBtn.classList.add('active-step-btn');
+          stBox.classList.add('active-stage-col');
+        } else {
+          sBtn.classList.remove('active-step-btn');
+          stBox.classList.remove('active-stage-col');
+        }
+      }
+
+      updateUsPhoneArrivalUI();
+
+      const info = stepDetails[stepNum];
+      document.getElementById('expStepBadge').textContent = info.badge;
+      document.getElementById('expTitle').innerHTML = info.title;
+      document.getElementById('expBody').innerHTML = info.body;
+      document.getElementById('expAnalogyText').textContent = info.analogy;
+
+      const convBadge = document.getElementById('scopeConversionBadge');
+      convBadge.textContent = info.convBadge;
+      convBadge.className = `px-2 py-0.5 rounded-md border text-[10px] font-black ${info.convClass}`;
+
+      document.getElementById('scopeTrack2Title').innerHTML = info.track2Title;
+      document.getElementById('scopeBottomLabel').innerHTML = info.bottomLabel;
+    }
+
+    // 구간 1 캔버스: 내 스마트폰 변조 -> 전자기파(전기+자기장)
+    function drawStage1Canvas() {
+      const c = document.getElementById('stageCanvas1');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isActive = state.currentStep === 1;
+      const speed = isActive ? 0.25 : 0.07;
+      const cy = h * 0.5;
+
+      // 전기장 (파란 실선)
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      ctx.beginPath();
+      for (let x = 6; x <= w - 6; x += 2) {
+        const py = cy + Math.sin(x * 0.16 - state.tick * speed) * (h * 0.36);
+        if (x === 6) ctx.moveTo(x, py);
+        else ctx.lineTo(x, py);
+      }
+      ctx.stroke();
+
+      // 자기장 (빨간 점선)
+      ctx.strokeStyle = '#e11d48';
+      ctx.lineWidth = isActive ? 2.2 : 1.3;
+      ctx.setLineDash([4, 2]);
+      ctx.beginPath();
+      for (let x = 6; x <= w - 6; x += 2) {
+        const py = cy + Math.cos(x * 0.16 - state.tick * speed) * (h * 0.22);
+        if (x === 6) ctx.moveTo(x, py);
+        else ctx.lineTo(x, py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // 구간 2 캔버스: 구리 LAN선 전기 신호 & 중계기 증폭
+    function drawStage2Canvas() {
+      const c = document.getElementById('stageCanvas2');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isActive = state.currentStep === 2;
+      const speed = isActive ? 0.28 : 0.08;
+      const cy = h * 0.5;
+
+      // 구리선 배선 배경
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(8, cy);
+      ctx.lineTo(w - 8, cy);
+      ctx.stroke();
+
+      // 전기 신호 파형
+      ctx.strokeStyle = '#ea580c';
+      ctx.lineWidth = isActive ? 2.6 : 1.6;
+      ctx.beginPath();
+      for (let x = 8; x <= w - 8; x += 2) {
+        const py = cy + Math.sin(x * 0.22 - state.tick * speed) * (h * 0.34);
+        if (x === 8) ctx.moveTo(x, py);
+        else ctx.lineTo(x, py);
+      }
+      ctx.stroke();
+    }
+
+    // 구간 3 캔버스: 해저 광케이블 (광섬유 빛의 전반사)
+    function drawStage3Canvas() {
+      const c = document.getElementById('stageCanvas3');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isActive = state.currentStep === 3;
+      drawOpticalFiberTube(ctx, w, h, isActive ? 0.042 : 0.015);
+    }
+
+    // 구간 4 캔버스: 외국 공유기 재변조 -> 외국 Wi-Fi 전자기파
+    function drawStage4Canvas() {
+      const c = document.getElementById('stageCanvas4');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isActive = state.currentStep === 4;
+      const speed = isActive ? 0.25 : 0.07;
+      const cy = h * 0.5;
+
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      ctx.beginPath();
+      for (let x = 6; x <= w - 6; x += 2) {
+        const py = cy + Math.sin(x * 0.16 - state.tick * speed) * (h * 0.36);
+        if (x === 6) ctx.moveTo(x, py);
+        else ctx.lineTo(x, py);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = '#e11d48';
+      ctx.lineWidth = isActive ? 2.2 : 1.3;
+      ctx.setLineDash([4, 2]);
+      ctx.beginPath();
+      for (let x = 6; x <= w - 6; x += 2) {
+        const py = cy + Math.cos(x * 0.16 - state.tick * speed) * (h * 0.22);
+        if (x === 6) ctx.moveTo(x, py);
+        else ctx.lineTo(x, py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // 구간 5 캔버스: 복조된 디지털 사각파 (0과 1)
+    function drawStage5Canvas() {
+      const c = document.getElementById('stageCanvas5');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const isActive = state.currentStep === 5;
+      const bits = snsMessages[state.selectedMsgIdx].bits;
+      const bw = (w - 16) / bits.length;
+
+      ctx.strokeStyle = isActive ? '#16a34a' : '#2563eb';
+      ctx.lineWidth = isActive ? 2.8 : 2;
+      ctx.beginPath();
+      for (let i = 0; i < bits.length; i++) {
+        const x1 = 8 + i * bw;
+        const x2 = x1 + bw;
+        const y = bits[i] === 1 ? 14 : h - 8;
+        if (i === 0) ctx.moveTo(x1, y);
+        else ctx.lineTo(x1, y);
+        ctx.lineTo(x2, y);
+
+        ctx.fillStyle = bits[i] === 1 ? '#15803d' : '#64748b';
+        ctx.font = '900 9.5px Pretendard';
+        ctx.textAlign = 'center';
+        ctx.fillText(bits[i], x1 + bw * 0.5, bits[i] === 1 ? 11 : h - 11);
+      }
+      ctx.stroke();
+    }
+
+    // =========================================================================
+    // 5. [페이지 2] 하단 실시간 아날로그 vs 디지털 오실로스코프 (순수 파형만 렌더링)
+    // =========================================================================
+    function drawScopeCanvas() {
+      const c = document.getElementById('scopeCanvas');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const bits = snsMessages[state.selectedMsgIdx].bits;
+      const padX = 10;
+      const plotW = Math.max(40, w - padX * 2);
+      const bitW = plotW / bits.length;
+
+      const topY = h * 0.27;
+      const botY = h * 0.74;
+
+      // 가로 중앙선 및 비트 구분 점선
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.5);
+      ctx.lineTo(w, h * 0.5);
+      for (let i = 0; i <= bits.length; i++) {
+        const gx = padX + i * bitW;
+        ctx.moveTo(gx, 2);
+        ctx.lineTo(gx, h - 2);
+      }
+      ctx.stroke();
+
+      // 1) 상단 트랙: 원본 디지털 신호 (0과 1 계단 파형)
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      for (let i = 0; i < bits.length; i++) {
+        const x1 = padX + i * bitW;
+        const x2 = x1 + bitW;
+        const y = bits[i] === 1 ? (topY - 9) : (topY + 10);
+        if (i === 0) ctx.moveTo(x1, y);
+        else ctx.lineTo(x1, y);
+        ctx.lineTo(x2, y);
+
+        ctx.fillStyle = bits[i] === 1 ? '#1d4ed8' : '#64748b';
+        ctx.font = '900 9.5px Pretendard';
+        ctx.textAlign = 'center';
+        ctx.fillText(bits[i], x1 + bitW * 0.5, topY - 11);
+      }
+      ctx.stroke();
+
+      // 2) 하단 트랙: 선택된 단계(1~5)의 실시간 신호 파형
+      const step = state.currentStep;
+
+      if (step === 1 || step === 4) {
+        // 변조된 아날로그 Wi-Fi 전자기파
+        ctx.strokeStyle = '#7c3aed';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let x = 0; x <= plotW; x++) {
+          const bIdx = Math.min(bits.length - 1, Math.floor(x / bitW));
+          const isOne = bits[bIdx] === 1;
+          const amp = isOne ? 12 : 4;
+          const freq = isOne ? 0.36 : 0.16;
+          const px = padX + x;
+          const py = botY + Math.sin(x * freq - state.tick * 0.22) * amp;
+          if (x === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      } else if (step === 2) {
+        // 구리 LAN선 전기 파형
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let x = 0; x <= plotW; x++) {
+          const bIdx = Math.min(bits.length - 1, Math.floor(x / bitW));
+          const isOne = bits[bIdx] === 1;
+          const amp = isOne ? 12 : 3;
+          const px = padX + x;
+          const py = botY + Math.sin(x * 0.28 - state.tick * 0.25) * amp;
+          if (x === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      } else if (step === 3) {
+        // 광섬유 레이저 빛 펄스 (1=고주파 발광, 0=꺼짐)
+        ctx.strokeStyle = '#059669';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let x = 0; x <= plotW; x++) {
+          const bIdx = Math.min(bits.length - 1, Math.floor(x / bitW));
+          const isOne = bits[bIdx] === 1;
+          const px = padX + x;
+          const py = isOne
+            ? botY + Math.sin(x * 0.55 - state.tick * 0.35) * 11
+            : botY + 9;
+          if (x === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      } else if (step === 5) {
+        // 5단계: 복조 완료! 상단과 똑같이 복원된 디지털 사각파
+        ctx.strokeStyle = '#16a34a';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        for (let i = 0; i < bits.length; i++) {
+          const x1 = padX + i * bitW;
+          const x2 = x1 + bitW;
+          const y = bits[i] === 1 ? (botY - 9) : (botY + 10);
+          if (i === 0) ctx.moveTo(x1, y);
+          else ctx.lineTo(x1, y);
+          ctx.lineTo(x2, y);
+        }
+        ctx.stroke();
+      }
+    }
+  </script>
+</body>
+</html>
